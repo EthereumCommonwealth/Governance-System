@@ -61,10 +61,18 @@ contract TreasuryVoting {
         string  name;
         string  URL;
         bytes32 hash;
-        uint    start_epoch;
-        uint    end_epoch;
+        uint    start_epoch; // Number of the epoch when proposal voting begins.
+        uint    end_epoch;   // Number of the epoch when proposal funding ends.
+        // NOTE: If a proposal is intended to be a one-time payment then 
+        //       it must have `start_epoch` = `i` and `end_epoch` = `i + 1` because
+        //       the proposal will be paid in the next epoch after the voting epoch ends.
+        
         address payment_address;
         uint    payment_amount;
+        
+        uint votes_for;
+        uint votes_against;
+        uint votes_abstain;
         
         uint status;
         
@@ -78,16 +86,24 @@ contract TreasuryVoting {
         // Proposal sublission tx requires `proposal_threshold` to be paid.
     }
     
+    struct Vote
+    {
+        address voter;
+        uint    vote_code; // 0 - for, 1 - against, 2 - abstain
+        uint    weight;
+    }
+    
     ColdStaking public cold_staking_contract = ColdStaking(0xd813419749b3c2cdc94a2f9cfcf154113264a9d6); // Staking contract address and ABI.
     
-    uint public epoch_length = 27 days; // Voting epoch length.
-    uint public start_timestamp = now;
+    uint public epoch_length        = 27 days; // Voting epoch length.
+    uint public start_timestamp     = now;
     
     uint public total_voting_weight = 0; // This variable preserves the total amount of staked funds which participate in voting.
-    uint public proposal_threshold = 500 ether; // The amount of funds that will be held by voting contract during the proposal consideration/voting.
+    uint public proposal_threshold  = 500 ether; // The amount of funds that will be held by voting contract during the proposal consideration/voting.
     
-    mapping(address => uint) public voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
+    mapping(address => uint) public     voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
     mapping(bytes32 => Proposal) public proposals; // Use `bytes32` sha3 hash of proposal name to identify a proposal entity.
+    mapping(bytes32 => Vote) public     votes;
 
 
     // Cold Staker can become a voter by executing this funcion.
@@ -132,18 +148,64 @@ contract TreasuryVoting {
     {
         require(msg.value > proposal_threshold);
         require(get_current_epoch() < _start);
-        require(!(_start>_end));
+        require(_end > _start);
         require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
         require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
         
+        proposals[sha3(_name)].name            = _name;
+        proposals[sha3(_name)].URL             = _url;
+        proposals[sha3(_name)].hash            = _hash;
+        proposals[sha3(_name)].start_epoch     = _start;
+        proposals[sha3(_name)].end_epoch       = _end;
+        proposals[sha3(_name)].payment_address = _destination;
+        proposals[sha3(_name)].payment_amount  = _funding;
         
+        proposals[sha3(_name)].status          = 0;
     }
     
-    function cast_vote() only_voter
+    function is_votable_proposal(string _name) constant returns (bool)
     {
-        // ... vote calculation logic here ...
+        return (proposals[sha3(_name)].start_epoch == get_current_epoch());
+    }
+    
+    
+    
+    function cast_vote(string _proposal_name, uint _vote_code) only_voter
+    {
+        
+        // Vote encodings:
+        // 0 - for
+        // 1 - against
+        // 2 - abstain
+        
+        require(proposals[sha3(_proposal_name)].start_epoch == get_current_epoch());
+        
+        if(_vote_code == 0)
+        {
+            proposals[sha3(_proposal_name)].votes_for += voting_weight[msg.sender];
+        }
+        else if (_vote_code == 1)
+        {
+            proposals[sha3(_proposal_name)].votes_against += voting_weight[msg.sender];
+        }
+        else if (_vote_code == 2)
+        {
+            proposals[sha3(_proposal_name)].votes_abstain += voting_weight[msg.sender];
+        }
+        else
+        {
+            revert();
+        }
         
         cold_staking_contract.vote_casted(msg.sender);
+    }
+    
+    function evaluate_proposal(string _name)
+    {
+        require(proposals[sha3(_name)].start_epoch < get_current_epoch());
+        require(proposals[sha3(_name)].end_epoch >= get_current_epoch());
+        
+        
     }
     
     function is_voter(address _who) public constant returns (bool)
