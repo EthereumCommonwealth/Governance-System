@@ -43,6 +43,8 @@ contract ColdStaking {
     
     mapping(address => Staker) public staker;
     
+    function vote_casted(address _addr) public { }
+    
     uint public a;
     
 }
@@ -85,6 +87,7 @@ contract TreasuryVoting {
     uint public proposal_threshold = 500 ether; // The amount of funds that will be held by voting contract during the proposal consideration/voting.
     
     mapping(address => uint) public voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
+    mapping(bytes32 => Proposal) public proposals; // Use `bytes32` sha3 hash of proposal name to identify a proposal entity.
 
 
     // Cold Staker can become a voter by executing this funcion.
@@ -120,15 +123,27 @@ contract TreasuryVoting {
     }
     
     // Returns the id of current Treasury Epoch.
-    function get_epoch() public constant returns (uint)
+    function get_current_epoch() public constant returns (uint)
     {
         return ((block.timestamp - start_timestamp) / epoch_length);
     }
     
-    function submit_proposal() public payable
+    function submit_proposal(string _name, string _url, bytes32 _hash, uint _start, uint _end, address _destination, uint _funding) public payable
     {
         require(msg.value > proposal_threshold);
+        require(get_current_epoch() < _start);
+        require(!(_start>_end));
+        require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
+        require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
         
+        
+    }
+    
+    function cast_vote() only_voter
+    {
+        // ... vote calculation logic here ...
+        
+        cold_staking_contract.vote_casted(msg.sender);
     }
     
     function is_voter(address _who) public constant returns (bool)
@@ -139,6 +154,12 @@ contract TreasuryVoting {
     modifier only_staking_contract()
     {
         require(msg.sender == address(cold_staking_contract));
+        _;
+    }
+    
+    modifier only_voter
+    {
+        require(is_voter(msg.sender));
         _;
     }
 }
