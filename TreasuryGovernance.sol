@@ -59,10 +59,18 @@ contract TreasuryVoting {
         string  name;
         string  URL;
         bytes32 hash;
-        uint    start_block;
-        uint    end_block;
+        uint    start_epoch;
+        uint    end_epoch;
         address payment_address;
         uint    payment_amount;
+        
+        uint status;
+        
+        // STATUS:
+        // 0 - voting
+        // 1 - accepted/ awaiting payment
+        // 2 - declined
+        // 3 - withdrawn
         
         // Collateral tx id is not necessary.
         // Proposal sublission tx requires `proposal_threshold` to be paid.
