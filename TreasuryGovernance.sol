@@ -48,12 +48,31 @@ contract ColdStaking {
 }
 
 contract TreasuryVoting {
+    
+    // TODO: Update calculations with SafeMath functions.
 
     using SafeMath for uint;
+    
+    struct Proposal
+    {
+        // Based on IOHK Treasury proposal system.
+        string  name;
+        string  URL;
+        bytes32 hash;
+        uint    start_block;
+        uint    end_block;
+        address payment_address;
+        uint    payment_amount;
+        
+        // Collateral tx id is not necessary.
+        // Proposal sublission tx requires `proposal_threshold` to be paid.
+    }
     
     ColdStaking public cold_staking_contract = ColdStaking(0xd813419749b3c2cdc94a2f9cfcf154113264a9d6); // Staking contract address and ABI.
     
     uint public epoch_length = 27 days; // Voting epoch length.
+    uint public start_timestamp = now;
+    
     uint public total_voting_weight = 0; // This variable preserves the total amount of staked funds which participate in voting.
     uint public proposal_threshold = 500 ether; // The amount of funds that will be held by voting contract during the proposal consideration/voting.
     
@@ -92,7 +111,17 @@ contract TreasuryVoting {
         voting_weight[_who] = _new_weight;
     }
     
+    // Returns the id of current Treasury Epoch.
+    function get_epoch() public constant returns (uint)
+    {
+        return ((block.timestamp - start_timestamp) / epoch_length);
+    }
     
+    function submit_proposal() public payable
+    {
+        require(msg.value > proposal_threshold);
+        
+    }
     
     function is_voter(address _who) public constant returns (bool)
     {
