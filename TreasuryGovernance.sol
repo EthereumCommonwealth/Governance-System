@@ -205,7 +205,15 @@ contract TreasuryVoting {
         require(proposals[sha3(_name)].start_epoch < get_current_epoch());
         require(proposals[sha3(_name)].end_epoch >= get_current_epoch());
         
+        uint _total_votes = proposals[sha3(_name)].votes_abstain + proposals[sha3(_name)].votes_against + proposals[sha3(_name)].votes_for;
+        if (_total_votes * 4 < total_voting_weight)
+        {
+            // Proposal was not voted enough.
+            proposals[sha3(_name)].status = 3;
+            return;
+        }
         
+        // TODO
     }
     
     function is_voter(address _who) public constant returns (bool)
