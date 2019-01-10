@@ -151,11 +151,11 @@ contract TreasuryVoting {
     
     function submit_proposal(string _name, string _url, bytes32 _hash, uint _start, uint _end, address _destination, uint _funding) public payable
     {
+        require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
+        require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
         require(msg.value > proposal_threshold);
         require(get_current_epoch() < _start);
         require(_end > _start);
-        require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
-        require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
         
         proposals[sha3(_name)].name            = _name;
         proposals[sha3(_name)].URL             = _url;
@@ -170,7 +170,7 @@ contract TreasuryVoting {
     
     function is_votable_proposal(string _name) constant returns (bool)
     {
-        return (proposals[sha3(_name)].start_epoch == get_current_epoch());
+        return (proposals[sha3(_name)].start_epoch == get_current_epoch() && proposals[sha3(_name)].status == 0);
     }
     
     
@@ -183,7 +183,11 @@ contract TreasuryVoting {
         // 1 - against
         // 2 - abstain
         
-        require(proposals[sha3(_proposal_name)].start_epoch == get_current_epoch());
+        
+        // Check whether proposal is submitted for first voting
+        // OR a multiepoch proposal is undergoing a re-evaluation.
+        require(proposals[sha3(_proposal_name)].start_epoch == get_current_epoch() ||
+        (proposals[sha3(_proposal_name)].start_epoch < get_current_epoch() && proposals[sha3(_proposal_name)].status == 0) );
         
         // Check whether msg.sender has already voted on this proposal
         // clear his vote first if so.
@@ -220,6 +224,7 @@ contract TreasuryVoting {
     {
         require(proposals[sha3(_name)].start_epoch < get_current_epoch());
         require(proposals[sha3(_name)].end_epoch >= get_current_epoch());
+        require(proposals[sha3(_name)].status == 0);
         
         uint _total_votes = proposals[sha3(_name)].votes_abstain + proposals[sha3(_name)].votes_against + proposals[sha3(_name)].votes_for;
         if ( _total_votes < ((total_voting_weight * voting_threshold)/100) )
@@ -291,15 +296,68 @@ contract TreasuryVoting {
    // Anyone can request a funding for accepted proposal.
    function request_funding(string _proposal_name)
    {
-       fund_proposal(_proposal_name);
+       if (proposals[sha3(_proposal_name)].status == 0)
+       {
+           // If proposal has `votable` status then it must be re-evaluated. This may happen in case of multiepoch proposal.
+           evaluate_proposal(_proposal_name); // Automatically funding proposal at the end of evaluation if proposal is `accepted`.
+       }
+       else
+       {
+           fund_proposal(_proposal_name); // Pay proposal if it does not require re-evaluation.
+       }
    }
    
-   function reevaluate_multiepoch_proposal(string _name) only_voter
+   function reevaluate_multiepoch_proposal(string _proposal_name) only_voter
    {
+       // Each voter can request a re-evaluation of already-accepted proposal if the proposal was already paid at current epoch.
+       // Allows to re-evaluate each voting record manually.
+       
+       if (proposals[sha3(_proposal_name)].last_funded_epoch == get_current_epoch())
+       {
+           proposals[sha3(_proposal_name)].status = 0; // Assign `votable` status. Preserves voting records from the previous voting session.
+       }
        
    }
     
-    
+    // Manually re-evaluates specified voting record.
+    // This may be necessary to re-evaluate cold staker's weight
+    // if it changes after the last vote record of the cold staker.
+    function reevaluate_vote_record(string _proposal_name, address _voter) only_voter
+    {
+        /*uint _delta;
+        if(votes[sha3(_proposal_name)][_voter].weight > voting_weight[_voter])
+        {
+            // Decrease the corresponding amount of vote records of the proposal if voter's weight decreases.
+            _delta = votes[sha3(_proposal_name)][_voter].weight - voting_weight[_voter];
+            
+            if(votes[sha3(_proposal_name)][_voter].vote_code == 0)
+            {
+                proposals[sha3(_proposal_name)].votes_for 
+            }
+        }*/
+        
+        require(proposals[sha3(_proposal_name)].status == 0); // Allow re-evaluation of `votable` proposals only.
+        uint _vote_code = votes[sha3(_proposal_name)][_voter].vote_code; // Preserve the decision from the previous voting session.
+        
+        clear_vote(_proposal_name, _voter); // Clear the previous vote.
+        
+        // Cas a vote on _voter's behalf depending on previous voting session decision (FOR, AGAINST, ABSTAIN).
+        if(_vote_code == 0)
+        {
+            proposals[sha3(_proposal_name)].votes_for += voting_weight[_voter];
+        }
+        else if (_vote_code == 1)
+        {
+            proposals[sha3(_proposal_name)].votes_against += voting_weight[_voter];
+        }
+        else if (_vote_code == 2)
+        {
+            proposals[sha3(_proposal_name)].votes_abstain += voting_weight[_voter];
+        }
+        
+        votes[sha3(_proposal_name)][_voter].weight    = voting_weight[_voter];
+        votes[sha3(_proposal_name)][_voter].vote_code = _vote_code;
+    }
     
     function is_voter(address _who) public constant returns (bool)
     {
