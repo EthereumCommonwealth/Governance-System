@@ -4,6 +4,7 @@ pragma solidity ^0.4.25;
  * @title SafeMath
  * @dev Math operations with safety checks that throw on error
  */
+ 
 library SafeMath {
   function mul(uint a, uint b) internal pure returns (uint) {
     if (a == 0) {
@@ -100,6 +101,8 @@ contract TreasuryVoting {
     
     uint public total_voting_weight = 0; // This variable preserves the total amount of staked funds which participate in voting.
     uint public proposal_threshold  = 500 ether; // The amount of funds that will be held by voting contract during the proposal consideration/voting.
+    uint public voting_threshold    = 50; // Percentage of votes which is required to consider that there are enough votes for the proposal. 
+                                          // If a proposal was not voted enough then it will be rejected automatically.
     
     mapping(address => uint) public     voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
     mapping(bytes32 => Proposal) public proposals; // Use `bytes32` sha3 hash of proposal name to identify a proposal entity.
@@ -119,7 +122,7 @@ contract TreasuryVoting {
     }
     
     
-    // Staking Contract MUST call this function on each staking deposit update.
+    // Staking Contract MUST call this function on each staking deposit update (on withdrawals and deposits).
     function update_voter(address _who, uint _new_weight) public only_staking_contract()
     {
         // If the voting weight of a given address decreases
@@ -203,10 +206,10 @@ contract TreasuryVoting {
     function evaluate_proposal(string _name)
     {
         require(proposals[sha3(_name)].start_epoch < get_current_epoch());
-        require(proposals[sha3(_name)].end_epoch >= get_current_epoch());
+        require(proposals[sha3(_name)].end_epoch > get_current_epoch());
         
         uint _total_votes = proposals[sha3(_name)].votes_abstain + proposals[sha3(_name)].votes_against + proposals[sha3(_name)].votes_for;
-        if (_total_votes * 4 < total_voting_weight)
+        if ( _total_votes < ((total_voting_weight * voting_threshold)/100) )
         {
             // Proposal was not voted enough.
             proposals[sha3(_name)].status = 3;
