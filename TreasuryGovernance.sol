@@ -228,7 +228,7 @@ contract TreasuryVoting {
         }
         else
         { 
-            // Rejected.
+            // Assign `rejected` status.
             proposals[sha3(_name)].status = 2;
         }
     }
@@ -236,10 +236,12 @@ contract TreasuryVoting {
     
    function fund_proposal(string _name) internal
    {
+       // Checking conditions first.
+       // Proposal must be `accepted` and it must not be expired.
        require(proposals[sha3(_name)].status == 1);
        require(proposals[sha3(_name)].end_epoch <= get_current_epoch());
        
-       proposals[sha3(_name)].payment_address.transfer(proposals[sha3(_name)].payment_amount);
+       proposals[sha3(_name)].payment_address.transfer(proposals[sha3(_name)].payment_amount); // Send payment.
    }
    
    // Anyone can request a funding for accepted proposal.
