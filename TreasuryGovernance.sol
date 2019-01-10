@@ -69,7 +69,9 @@ contract TreasuryVoting {
         //       the proposal will be paid in the next epoch after the voting epoch ends.
         
         address payment_address;
-        uint    payment_amount;
+        uint    payment_amount; // Amount of payment per epoch.
+        // NOTE: If a proposal is intended to be paid in multiple epochs then
+        //       it will reveive (`payment_amount` * epochs count) funds.
         
         uint votes_for;
         uint votes_against;
@@ -206,7 +208,7 @@ contract TreasuryVoting {
     function evaluate_proposal(string _name)
     {
         require(proposals[sha3(_name)].start_epoch < get_current_epoch());
-        require(proposals[sha3(_name)].end_epoch > get_current_epoch());
+        require(proposals[sha3(_name)].end_epoch >= get_current_epoch());
         
         uint _total_votes = proposals[sha3(_name)].votes_abstain + proposals[sha3(_name)].votes_against + proposals[sha3(_name)].votes_for;
         if ( _total_votes < ((total_voting_weight * voting_threshold)/100) )
@@ -216,8 +218,37 @@ contract TreasuryVoting {
             return;
         }
         
-        // TODO
+        if (proposals[sha3(_name)].votes_for > proposals[sha3(_name)].votes_against)
+        {
+            // Proposal is accepted if "FOR" votes weight > "AGAINST"
+            proposals[sha3(_name)].status = 1;
+            
+            // If the proposal is accepted then send the first payment immediately.
+            fund_proposal(_name);
+        }
+        else
+        { 
+            // Rejected.
+            proposals[sha3(_name)].status = 2;
+        }
     }
+    
+    
+   function fund_proposal(string _name) internal
+   {
+       require(proposals[sha3(_name)].status == 1);
+       require(proposals[sha3(_name)].end_epoch <= get_current_epoch());
+       
+       proposals[sha3(_name)].payment_address.transfer(proposals[sha3(_name)].payment_amount);
+   }
+   
+   // Anyone can request a funding for accepted proposal.
+   function request_funding(string _proposal_name)
+   {
+       fund_proposal(_proposal_name);
+   }
+    
+    
     
     function is_voter(address _who) public constant returns (bool)
     {
