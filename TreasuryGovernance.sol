@@ -72,6 +72,7 @@ contract TreasuryVoting {
         uint    payment_amount; // Amount of payment per epoch.
         // NOTE: If a proposal is intended to be paid in multiple epochs then
         //       it will reveive (`payment_amount` * epochs count) funds.
+        uint    last_funded_epoch; // Number of the epoch in which the proposal was last funded.
         
         uint votes_for;
         uint votes_against;
@@ -91,7 +92,6 @@ contract TreasuryVoting {
     
     struct Vote
     {
-        address voter;
         uint    vote_code; // 0 - for, 1 - against, 2 - abstain
         uint    weight;
     }
@@ -106,9 +106,9 @@ contract TreasuryVoting {
     uint public voting_threshold    = 50; // Percentage of votes which is required to consider that there are enough votes for the proposal. 
                                           // If a proposal was not voted enough then it will be rejected automatically.
     
-    mapping(address => uint) public     voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
+    mapping(address => uint)     public voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
     mapping(bytes32 => Proposal) public proposals; // Use `bytes32` sha3 hash of proposal name to identify a proposal entity.
-    mapping(bytes32 => Vote) public     votes;
+    mapping(bytes32 => mapping(address => Vote))     public votes;
 
 
     // Cold Staker can become a voter by executing this funcion.
@@ -185,6 +185,13 @@ contract TreasuryVoting {
         
         require(proposals[sha3(_proposal_name)].start_epoch == get_current_epoch());
         
+        // Check whether msg.sender has already voted on this proposal
+        // clear his vote first if so.
+        if(votes[sha3(_proposal_name)][msg.sender].weight != 0)
+        {
+            clear_vote(_proposal_name, msg.sender);
+        }
+        
         if(_vote_code == 0)
         {
             proposals[sha3(_proposal_name)].votes_for += voting_weight[msg.sender];
@@ -201,6 +208,10 @@ contract TreasuryVoting {
         {
             revert();
         }
+        
+        // Record voter, code and weight to prevent multiple votings from single address.
+        votes[sha3(_proposal_name)][msg.sender].weight    = voting_weight[msg.sender];
+        votes[sha3(_proposal_name)][msg.sender].vote_code = _vote_code;
         
         cold_staking_contract.vote_casted(msg.sender);
     }
@@ -238,16 +249,54 @@ contract TreasuryVoting {
    {
        // Checking conditions first.
        // Proposal must be `accepted` and it must not be expired.
-       require(proposals[sha3(_name)].status == 1);
-       require(proposals[sha3(_name)].end_epoch <= get_current_epoch());
+       assert(proposals[sha3(_name)].status == 1);
+       assert(proposals[sha3(_name)].end_epoch <= get_current_epoch());
+       assert(proposals[sha3(_name)].last_funded_epoch < get_current_epoch());
        
-       proposals[sha3(_name)].payment_address.transfer(proposals[sha3(_name)].payment_amount); // Send payment.
+       uint epoch_delta = get_current_epoch() - proposals[sha3(_name)].last_funded_epoch;
+       
+       proposals[sha3(_name)].payment_address.transfer( (proposals[sha3(_name)].payment_amount * epoch_delta) ); // Send payment * unpaid epochs count.
+       proposals[sha3(_name)].last_funded_epoch = get_current_epoch(); // Modify the last payment epoch.
+   }
+   
+   function clear_vote(string _proposal_name, address _voter) internal
+   {
+       // IMPORTANT: Voters weight could change since the moment of proposal voting.
+       // `votes[sha3(_proposal_name)][_voter].weight` is not necessarily equal to `voting_weight[_voter]`
+       
+       // Check if _voter has a record of _proposal voting.
+       assert(votes[sha3(_proposal_name)][_voter].weight != 0);
+       
+       if(votes[sha3(_proposal_name)][_voter].vote_code == 0)
+       {
+           // If _voter casted a vote FOR then reduce the weight of FOR votes.
+           proposals[sha3(_proposal_name)].votes_for -= votes[sha3(_proposal_name)][_voter].weight;
+       }
+       else if(votes[sha3(_proposal_name)][_voter].vote_code == 1)
+       {
+           // If _voter casted a vote AGAINST then reduce the weight of AGAINST votes.
+           proposals[sha3(_proposal_name)].votes_against -= votes[sha3(_proposal_name)][_voter].weight;
+       }
+       else
+       {
+           // Assume that _voter casted ABSTAIN vote.
+           proposals[sha3(_proposal_name)].votes_abstain -= votes[sha3(_proposal_name)][_voter].weight;
+       }
+       
+       // Zero out _voter's weight and voting record entry.
+       votes[sha3(_proposal_name)][_voter].weight    = 0;
+       votes[sha3(_proposal_name)][_voter].vote_code = 0;
    }
    
    // Anyone can request a funding for accepted proposal.
    function request_funding(string _proposal_name)
    {
        fund_proposal(_proposal_name);
+   }
+   
+   function reevaluate_multiepoch_proposal(string _name) only_voter
+   {
+       
    }
     
     
