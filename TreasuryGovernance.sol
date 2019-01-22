@@ -44,7 +44,7 @@ contract ColdStaking {
     
     mapping(address => Staker) public staker;
     
-    function vote_casted(address _addr) public { }
+    function vote_casted(address _addr, uint _proposal_deadline) public { }
     
     uint public a;
     
@@ -116,11 +116,22 @@ contract TreasuryVoting {
     // and update the total voting weight.
     function become_voter() public
     {
+        require(voting_weight[msg.sender] == 0);
+        
         uint _amount;
         uint _time;
         (_amount, _time) = cold_staking_contract.staker(msg.sender);
         voting_weight[msg.sender] = _amount;
         total_voting_weight += _amount;
+    }
+    
+    
+    function resign_voter() public
+    {
+        require(voting_weight[msg.sender] != 0);
+        
+        total_voting_weight -= voting_weight[msg.sender];
+        voting_weight[msg.sender] = 0;
     }
     
     
@@ -217,7 +228,7 @@ contract TreasuryVoting {
         votes[sha3(_proposal_name)][msg.sender].weight    = voting_weight[msg.sender];
         votes[sha3(_proposal_name)][msg.sender].vote_code = _vote_code;
         
-        cold_staking_contract.vote_casted(msg.sender);
+        cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
     }
     
     function evaluate_proposal(string _name)
