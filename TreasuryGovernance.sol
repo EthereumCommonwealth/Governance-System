@@ -125,7 +125,9 @@ contract TreasuryVoting {
         total_voting_weight += _amount;
     }
     
-    
+    // Voter can resign from his voting rights.
+    // In this case, his voting weight will be subtracted from total voting weight.
+    // This person can become voter again by calling the `become_voter` function.
     function resign_voter() public
     {
         require(voting_weight[msg.sender] != 0);
