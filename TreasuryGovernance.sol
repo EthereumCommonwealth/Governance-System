@@ -230,7 +230,10 @@ contract TreasuryVoting {
         votes[sha3(_proposal_name)][msg.sender].weight    = voting_weight[msg.sender];
         votes[sha3(_proposal_name)][msg.sender].vote_code = _vote_code;
         
-        cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
+        if(!stakecast_disabled)
+        {
+            cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
+        }
     }
     
     function evaluate_proposal(string _name)
@@ -388,4 +391,47 @@ contract TreasuryVoting {
         require(is_voter(msg.sender));
         _;
     }
+    
+    // DEBUGGING FUNCTIONS
+    /*-------------------------------------------------------*/
+    
+    address public treasurer;
+    
+    modifier only_treasurer
+    {
+        require(msg.sender == treasurer);
+        _;
+    }
+    
+    bool public deposits_disabled = false;
+    bool public withdrawals_disabled = false;
+    bool public stakecast_disabled = false;
+    
+    function restrict_deposits(bool _status) only_treasurer
+    {
+        deposits_disabled = _status;
+    }
+    
+    function restrict_withdrawals(bool _status) only_treasurer
+    {
+        withdrawals_disabled = _status;
+    }
+    
+    function restrict_stakecast(bool _status) only_treasurer
+    {
+        stakecast_disabled = _status;
+    }
+    
+    function set_staking_contract(address _new_staking_contract) only_treasurer
+    {
+        cold_staking_contract = ColdStaking(_new_staking_contract);
+    }
+    
+    function set_start(uint _time) only_treasurer
+    {
+        start_timestamp = _time;
+    }
+    
+    /*-------------------------------------------------------*/
+    // END DEBUGGING FUNCTIONS
 }
