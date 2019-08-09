@@ -426,20 +426,7 @@ contract TreasuryVoting {
         require(msg.sender == treasurer);
         _;
     }
-    
-    bool public deposits_disabled = false;
-    bool public withdrawals_disabled = false;
     bool public stakecast_disabled = false;
-    
-    function restrict_deposits(bool _status) only_treasurer
-    {
-        deposits_disabled = _status;
-    }
-    
-    function restrict_withdrawals(bool _status) only_treasurer
-    {
-        withdrawals_disabled = _status;
-    }
     
     function restrict_stakecast(bool _status) only_treasurer
     {
