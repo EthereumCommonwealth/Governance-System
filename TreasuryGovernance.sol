@@ -56,6 +56,12 @@ contract TreasuryVoting {
 
     using SafeMath for uint;
     
+    event VoterUpdated(address indexed voter, uint weight);
+    event ProposalSubmitted(bytes32 indexed hash, address indexed owner, uint total_payment);
+    event ProposalEvaluated(bytes32 indexed hash, uint status);
+    event ProposalReevaluation(bytes32 indexed hash, uint status);
+    event VoteRecorded(address indexed voter, bytes32 indexed proposal, uint indexed code, uint weight);
+    
     struct Proposal
     {
         // Based on IOHK Treasury proposal system.
@@ -123,6 +129,8 @@ contract TreasuryVoting {
         (_amount, _time) = cold_staking_contract.staker(msg.sender);
         voting_weight[msg.sender] = _amount;
         total_voting_weight += _amount;
+        
+        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     // Voter can resign from his voting rights.
@@ -134,6 +142,8 @@ contract TreasuryVoting {
         
         total_voting_weight -= voting_weight[msg.sender];
         voting_weight[msg.sender] = 0;
+        
+        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     
@@ -154,6 +164,8 @@ contract TreasuryVoting {
             total_voting_weight += (_new_weight - voting_weight[_who]);
         }
         voting_weight[_who] = _new_weight;
+        
+        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     // Returns the id of current Treasury Epoch.
@@ -179,6 +191,8 @@ contract TreasuryVoting {
         proposals[sha3(_name)].payment_amount  = _funding;
         
         proposals[sha3(_name)].status          = 0;
+        
+        emit ProposalSubmitted(_hash, _destination, _funding * (_end - _start));
     }
     
     function is_votable_proposal(string _name) constant returns (bool)
@@ -234,6 +248,8 @@ contract TreasuryVoting {
         {
             cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
         }
+        
+        emit VoteRecorded(msg.sender, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[msg.sender]);
     }
     
     function evaluate_proposal(string _name)
@@ -263,6 +279,8 @@ contract TreasuryVoting {
             // Assign `rejected` status.
             proposals[sha3(_name)].status = 2;
         }
+        
+        emit ProposalEvaluated(proposals[sha3(_name)].hash, proposals[sha3(_name)].status);
     }
     
     
@@ -307,6 +325,8 @@ contract TreasuryVoting {
        // Zero out _voter's weight and voting record entry.
        votes[sha3(_proposal_name)][_voter].weight    = 0;
        votes[sha3(_proposal_name)][_voter].vote_code = 0;
+        
+        emit VoteRecorded(_voter, proposals[sha3(_proposal_name)].hash, 0, 0);
    }
    
    // Anyone can request a funding for accepted proposal.
@@ -331,6 +351,8 @@ contract TreasuryVoting {
        if (proposals[sha3(_proposal_name)].last_funded_epoch == get_current_epoch())
        {
            proposals[sha3(_proposal_name)].status = 0; // Assign `votable` status. Preserves voting records from the previous voting session.
+           
+           emit ProposalReevaluation(proposals[sha3(_proposal_name)].hash, proposals[sha3(_proposal_name)].status);
        }
        
    }
@@ -373,6 +395,8 @@ contract TreasuryVoting {
         
         votes[sha3(_proposal_name)][_voter].weight    = voting_weight[_voter];
         votes[sha3(_proposal_name)][_voter].vote_code = _vote_code;
+        
+        emit VoteRecorded(_voter, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[_voter]);
     }
     
     function is_voter(address _who) public constant returns (bool)
