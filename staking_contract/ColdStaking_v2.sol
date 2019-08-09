@@ -62,8 +62,17 @@ contract ColdStaking
     uint public lastTotalReward;
     uint public lastBlockNumber;
     
+    /*
     uint public claim_delay = 27 days;
     uint public max_delay = 365 * 2 days; // 2 years.
+    */
+    
+    /* TESTING VALUES */
+    
+    uint public claim_delay = 5 minutes;
+    uint public max_delay = 3 days; // 2 years.
+    
+    /* END TEST VALUES*/
     
     address public governance_contract = 0x0; // address to be added either by setter or hardcoded
     
