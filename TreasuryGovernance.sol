@@ -104,6 +104,8 @@ contract TreasuryVoting {
     
     ColdStaking public cold_staking_contract = ColdStaking(0xd813419749b3c2cdc94a2f9cfcf154113264a9d6); // Staking contract address and ABI.
     
+    uint public proposals_count;
+    
     uint public epoch_length        = 27 days; // Voting epoch length.
     uint public start_timestamp     = now;
     
@@ -399,6 +401,54 @@ contract TreasuryVoting {
         emit VoteRecorded(_voter, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[_voter]);
     }
     
+    function withdraw_proposal(string _name)
+    {
+        require(proposals[sha3(_name)].payment_address == msg.sender);
+        
+        proposals[sha3(_name)].status = 3;
+    }
+    
+    // Getter functions:
+    // NOTE: Solidity 0.4.25 compiler does not support enough stack depth
+    // Thats why getter functions were separated into _meta_info and _votes_info getters
+    // to avoid compiler stack-depth-related errors.
+    
+    function get_proposal_meta_info(string _name) public view returns(
+                string  URL,
+                bytes32 hash,
+                uint    start_epoch,
+                uint    end_epoch,
+                address payment_address,
+                uint    payment_amount,
+                uint    last_funded_epoch
+                )
+    {
+        return(
+            proposals[sha3(_name)].URL,
+            proposals[sha3(_name)].hash,
+            proposals[sha3(_name)].start_epoch,
+            proposals[sha3(_name)].end_epoch,
+            proposals[sha3(_name)].payment_address,
+            proposals[sha3(_name)].payment_amount,
+            proposals[sha3(_name)].last_funded_epoch
+            );
+    }
+    
+    function get_proposal_votes_info(string _name) public view returns(
+                uint votes_for,
+                uint votes_against,
+                uint votes_abstain,
+                uint status
+                )
+    {
+        return(
+            proposals[sha3(_name)].votes_for,
+            proposals[sha3(_name)].votes_against,
+            proposals[sha3(_name)].votes_abstain,
+            proposals[sha3(_name)].status
+            );
+    }
+    
     function is_voter(address _who) public constant returns (bool)
     {
         return voting_weight[_who] > 0;
@@ -441,6 +491,17 @@ contract TreasuryVoting {
     function set_start(uint _time) only_treasurer
     {
         start_timestamp = _time;
+    }
+    
+    function set_proposal_threshold(uint _threshold) only_treasurer
+    {
+        proposal_threshold = _threshold;
+    }
+    
+    // Voting threshold is set in percents.
+    function set_voting_threshold(uint _threshold) only_treasurer
+    {
+        voting_threshold = _threshold;
     }
     
     /*-------------------------------------------------------*/
