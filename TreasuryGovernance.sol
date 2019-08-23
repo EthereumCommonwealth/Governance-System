@@ -50,7 +50,7 @@ contract ColdStaking {
     
 }
 
-contract TreasuryVoting {
+contract TreasuryGovernance {
     
     // TODO: Update calculations with SafeMath functions.
 
