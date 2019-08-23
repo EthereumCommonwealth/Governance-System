@@ -499,6 +499,12 @@ contract TreasuryVoting {
         start_timestamp = _time;
     }
     
+    // Epoch length is set in seconds.
+    function set_epoch_length(uint _epoch_length) only_treasurer
+    {
+        epoch_length = _epoch_length;
+    }
+    
     function set_proposal_threshold(uint _threshold) only_treasurer
     {
         proposal_threshold = _threshold;
