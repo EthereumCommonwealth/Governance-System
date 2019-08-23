@@ -408,6 +408,27 @@ contract TreasuryVoting {
         proposals[sha3(_name)].status = 3;
     }
     
+    function is_voter(address _who) public constant returns (bool)
+    {
+        return voting_weight[_who] > 0;
+    } 
+    
+    modifier only_staking_contract()
+    {
+        require(msg.sender == address(cold_staking_contract));
+        _;
+    }
+    
+    modifier only_voter
+    {
+        require(is_voter(msg.sender));
+        _;
+    }
+    
+    
+    /* Commented out getter functions - prone to compiler mistakes
+    
+    
     // Getter functions:
     // NOTE: Solidity 0.4.25 compiler does not support enough stack depth
     // Thats why getter functions were separated into _meta_info and _votes_info getters
@@ -449,27 +470,12 @@ contract TreasuryVoting {
             );
     }
     
-    function is_voter(address _who) public constant returns (bool)
-    {
-        return voting_weight[_who] > 0;
-    } 
-    
-    modifier only_staking_contract()
-    {
-        require(msg.sender == address(cold_staking_contract));
-        _;
-    }
-    
-    modifier only_voter
-    {
-        require(is_voter(msg.sender));
-        _;
-    }
+    end of commenting getter functions */
     
     // DEBUGGING FUNCTIONS
     /*-------------------------------------------------------*/
     
-    address public treasurer;
+    address public treasurer = msg.sender;
     
     modifier only_treasurer
     {
