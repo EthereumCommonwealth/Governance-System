@@ -63,6 +63,11 @@ contract GovernanceProxy {
     {
         governance_contract.submit_proposal(_name, _url, _hash, governance_contract.get_current_epoch() + 1, governance_contract.get_current_epoch() + 1 + _length_in_epochs, _destination, _funding);
     }
+    
+    function hash(string _name) constant returns (bytes32)
+    {
+        return sha3(_name);
+    }
 }
 
 contract TreasuryGovernance {
@@ -118,8 +123,6 @@ contract TreasuryGovernance {
     }
     
     ColdStaking public cold_staking_contract = ColdStaking(0xd813419749b3c2cdc94a2f9cfcf154113264a9d6); // Staking contract address and ABI.
-    
-    uint public proposals_count;
     
     uint public epoch_length        = 27 days; // Voting epoch length.
     uint public start_timestamp     = now;
