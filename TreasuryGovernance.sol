@@ -194,26 +194,7 @@ contract TreasuryVoting {
         
         proposals[sha3(_name)].status          = 0;
         
-        emit ProposalSubmitted(_hash, _destination, _funding * (proposals[sha3(_name)].start_epoch - proposals[sha3(_name)].end_epoch));
-    }
-    
-    function submit_next_epoch_proposal(string _name, string _url, bytes32 _hash, uint _length_in_epochs, address _destination, uint _funding) public payable
-    {
-        require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
-        require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
-        require(msg.value > proposal_threshold);
-        
-        proposals[sha3(_name)].name            = _name;
-        proposals[sha3(_name)].URL             = _url;
-        proposals[sha3(_name)].hash            = _hash;
-        proposals[sha3(_name)].start_epoch     = get_current_epoch().add(1);
-        proposals[sha3(_name)].end_epoch       = get_current_epoch().add(_length_in_epochs + 1);
-        proposals[sha3(_name)].payment_address = _destination;
-        proposals[sha3(_name)].payment_amount  = _funding;
-        
-        proposals[sha3(_name)].status          = 0;
-        
-        emit ProposalSubmitted(_hash, _destination, _funding * (proposals[sha3(_name)].start_epoch - proposals[sha3(_name)].end_epoch));
+        emit ProposalSubmitted(_hash, _destination, _funding * (_end - _start));
     }
     
     function is_votable_proposal(string _name) constant returns (bool)
@@ -221,10 +202,7 @@ contract TreasuryVoting {
         return (proposals[sha3(_name)].start_epoch == get_current_epoch() && proposals[sha3(_name)].status == 0);
     }
     
-    function get_hash(string _name) public view returns (bytes32)
-    {
-        return sha3(_name);
-    }
+    
     
     function cast_vote(string _proposal_name, uint _vote_code) only_voter
     {
