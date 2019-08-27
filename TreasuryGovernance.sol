@@ -77,9 +77,9 @@ contract TreasuryGovernance {
     using SafeMath for uint;
     
     event VoterUpdated(address indexed voter, uint weight);
-    event ProposalSubmitted(bytes32 indexed hash, address indexed owner, uint total_payment, string name);
-    event ProposalEvaluated(bytes32 indexed hash, uint status, string name);
-    event ProposalReevaluation(bytes32 indexed hash, uint status, string name);
+    event ProposalSubmitted(string name, address indexed owner, uint total_payment);
+    event ProposalEvaluated(string name, uint status);
+    event ProposalReevaluation(string name, uint status);
     event VoteRecorded(address indexed voter, bytes32 indexed proposal, uint indexed code, uint weight);
     
     struct Proposal
@@ -88,7 +88,7 @@ contract TreasuryGovernance {
         string  name;
         string  URL;
         bytes32 hash;        // Hash of the proposal description text,
-                             // serves for proposal integrity proofs.
+                             // serves for proposal integrity verification.
         uint    start_epoch; // Number of the epoch when proposal voting begins.
         uint    end_epoch;   // Number of the epoch when proposal funding ends.
         // NOTE: If a proposal is intended to be a one-time payment then 
@@ -213,7 +213,7 @@ contract TreasuryGovernance {
         
         proposals[sha3(_name)].status          = 0;
         
-        emit ProposalSubmitted(_hash, _destination, _funding * (_end - _start), _name);
+        emit ProposalSubmitted(_name, _destination, _funding * (_end - _start));
     }
     
     function is_votable_proposal(string _name) constant returns (bool)
@@ -301,7 +301,7 @@ contract TreasuryGovernance {
             proposals[sha3(_name)].status = 2;
         }
         
-        emit ProposalEvaluated(proposals[sha3(_name)].hash, proposals[sha3(_name)].status, _name);
+        emit ProposalEvaluated(proposals[sha3(_name)].name, proposals[sha3(_name)].status);
     }
     
     
@@ -364,16 +364,16 @@ contract TreasuryGovernance {
        }
    }
    
-   function reevaluate_multiepoch_proposal(string _name) only_voter
+   function reevaluate_multiepoch_proposal(string _proposal_name) only_voter
    {
        // Each voter can request a re-evaluation of already-accepted proposal if the proposal was already paid at current epoch.
        // Allows to re-evaluate each voting record manually.
        
-       if (proposals[sha3(_name)].last_funded_epoch == get_current_epoch())
+       if (proposals[sha3(_proposal_name)].last_funded_epoch == get_current_epoch())
        {
-           proposals[sha3(_name)].status = 0; // Assign `votable` status. Preserves voting records from the previous voting session.
+           proposals[sha3(_proposal_name)].status = 0; // Assign `votable` status. Preserves voting records from the previous voting session.
            
-           emit ProposalReevaluation(proposals[sha3(_name)].hash, proposals[sha3(_name)].status, _name);
+           emit ProposalReevaluation(proposals[sha3(_proposal_name)].name, proposals[sha3(_proposal_name)].status);
        }
        
    }
