@@ -264,11 +264,7 @@ contract TreasuryGovernance {
         // Record voter, code and weight to prevent multiple votings from single address.
         votes[sha3(_proposal_name)][msg.sender].weight    = voting_weight[msg.sender];
         votes[sha3(_proposal_name)][msg.sender].vote_code = _vote_code;
-        
-        if(!stakecast_disabled)
-        {
-            cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
-        }
+        cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
         
         emit VoteRecorded(msg.sender, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[msg.sender]);
     }
@@ -501,21 +497,9 @@ contract TreasuryGovernance {
         require(msg.sender == treasurer);
         _;
     }
-    bool public stakecast_disabled = false;
-    
-    function restrict_stakecast(bool _status) only_treasurer
-    {
-        stakecast_disabled = _status;
-    }
-    
     function set_staking_contract(address _new_staking_contract) only_treasurer
     {
         cold_staking_contract = ColdStaking(_new_staking_contract);
-    }
-    
-    function set_start(uint _time) only_treasurer
-    {
-        start_timestamp = _time;
     }
     
     // Epoch length is set in seconds.
