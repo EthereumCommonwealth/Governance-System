@@ -199,7 +199,7 @@ contract TreasuryGovernance {
     {
         require(_destination != address(0x0)); // Address of a newly submitted proposal must not be 0x0.
         require(proposals[sha3(_name)].payment_address == address(0x0)); // Check whether a proposal exists (assuming that a proposal with address 0x0 does not exist).
-        require(msg.value > proposal_threshold);
+        require(msg.value >= proposal_threshold);
         require(get_current_epoch() < _start);
         require(_end > _start);
         
