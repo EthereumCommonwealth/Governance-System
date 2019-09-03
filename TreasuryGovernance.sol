@@ -494,8 +494,8 @@ contract TreasuryGovernance {
     
     modifier only_treasurer
     {
-        require(msg.sender == treasurer);
         _;
+        assert(msg.sender == treasurer);
     }
     function set_staking_contract(address _new_staking_contract) only_treasurer
     {
