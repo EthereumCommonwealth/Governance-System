@@ -50,18 +50,12 @@ contract ColdStaking {
     
 }
 
-contract GovernanceProxy {
+contract StakingEmulator {
     TreasuryGovernance public governance_contract = TreasuryGovernance(msg.sender);
     address public owner = msg.sender;
-    function set_new_governance(address _governance)
+    function staker(address _staker) constant returns(uint256, uint256)
     {
-        require (msg.sender == owner);
-        governance_contract = TreasuryGovernance(_governance);
-    }
-    
-    function submit_new_proposal(string _name, string _url, bytes32 _hash, uint _length_in_epochs, address _destination, uint _funding) public payable
-    {
-        governance_contract.submit_proposal(_name, _url, _hash, governance_contract.get_current_epoch() + 1, governance_contract.get_current_epoch() + 1 + _length_in_epochs, _destination, _funding);
+        return (10**18, 10**18);
     }
     
     function hash(string _name) constant returns (bytes32)
@@ -75,12 +69,6 @@ contract TreasuryGovernance {
     // TODO: Update calculations with SafeMath functions.
 
     using SafeMath for uint;
-    
-    event VoterUpdated(address indexed voter, uint weight);
-    event ProposalSubmitted(string name, address indexed owner, uint total_payment);
-    event ProposalEvaluated(string name, uint status);
-    event ProposalReevaluation(string name, uint status);
-    event VoteRecorded(address indexed voter, bytes32 indexed proposal, uint indexed code, uint weight);
     
     struct Proposal
     {
@@ -136,6 +124,9 @@ contract TreasuryGovernance {
     mapping(address => uint)     public voting_weight; // Each voters weight. Calculated and updated on each Cold Staked deposit change.
     mapping(bytes32 => Proposal) public proposals; // Use `bytes32` sha3 hash of proposal name to identify a proposal entity.
     mapping(bytes32 => mapping(address => Vote))     public votes;
+    mapping(uint    => bytes32)  public proposal_names;
+    
+    uint public last_proposal = 0;
 
 
     // Cold Staker can become a voter by executing this funcion.
@@ -150,8 +141,6 @@ contract TreasuryGovernance {
         (_amount, _time) = cold_staking_contract.staker(msg.sender);
         voting_weight[msg.sender] = _amount;
         total_voting_weight += _amount;
-        
-        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     // Voter can resign from his voting rights.
@@ -163,8 +152,6 @@ contract TreasuryGovernance {
         
         total_voting_weight -= voting_weight[msg.sender];
         voting_weight[msg.sender] = 0;
-        
-        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     
@@ -185,8 +172,6 @@ contract TreasuryGovernance {
             total_voting_weight += (_new_weight - voting_weight[_who]);
         }
         voting_weight[_who] = _new_weight;
-        
-        emit VoterUpdated(msg.sender, voting_weight[msg.sender]);
     }
     
     // Returns the id of current Treasury Epoch.
@@ -213,15 +198,14 @@ contract TreasuryGovernance {
         
         proposals[sha3(_name)].status          = 0;
         
-        emit ProposalSubmitted(_name, _destination, _funding * (_end - _start));
+        proposal_names[last_proposal]          = sha3(_name);
+        last_proposal++;
     }
     
     function is_votable_proposal(string _name) constant returns (bool)
     {
         return (proposals[sha3(_name)].start_epoch == get_current_epoch() && proposals[sha3(_name)].status == 0);
     }
-    
-    
     
     function cast_vote(string _proposal_name, uint _vote_code) only_voter
     {
@@ -265,8 +249,6 @@ contract TreasuryGovernance {
         votes[sha3(_proposal_name)][msg.sender].weight    = voting_weight[msg.sender];
         votes[sha3(_proposal_name)][msg.sender].vote_code = _vote_code;
         cold_staking_contract.vote_casted( msg.sender, (start_timestamp + epoch_length * get_current_epoch()) );
-        
-        emit VoteRecorded(msg.sender, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[msg.sender]);
     }
     
     function evaluate_proposal(string _name)
@@ -296,8 +278,6 @@ contract TreasuryGovernance {
             // Assign `rejected` status.
             proposals[sha3(_name)].status = 2;
         }
-        
-        emit ProposalEvaluated(proposals[sha3(_name)].name, proposals[sha3(_name)].status);
     }
     
     
@@ -342,8 +322,6 @@ contract TreasuryGovernance {
        // Zero out _voter's weight and voting record entry.
        votes[sha3(_proposal_name)][_voter].weight    = 0;
        votes[sha3(_proposal_name)][_voter].vote_code = 0;
-        
-        emit VoteRecorded(_voter, proposals[sha3(_proposal_name)].hash, 0, 0);
    }
    
    // Anyone can request a funding for accepted proposal.
@@ -368,10 +346,7 @@ contract TreasuryGovernance {
        if (proposals[sha3(_proposal_name)].last_funded_epoch == get_current_epoch())
        {
            proposals[sha3(_proposal_name)].status = 0; // Assign `votable` status. Preserves voting records from the previous voting session.
-           
-           emit ProposalReevaluation(proposals[sha3(_proposal_name)].name, proposals[sha3(_proposal_name)].status);
        }
-       
    }
     
     // Manually re-evaluates specified voting record.
@@ -412,8 +387,6 @@ contract TreasuryGovernance {
         
         votes[sha3(_proposal_name)][_voter].weight    = voting_weight[_voter];
         votes[sha3(_proposal_name)][_voter].vote_code = _vote_code;
-        
-        emit VoteRecorded(_voter, proposals[sha3(_proposal_name)].hash, _vote_code, voting_weight[_voter]);
     }
     
     function withdraw_proposal(string _name)
