@@ -274,9 +274,9 @@ contract ColdStaking
       
         // update TreasuryVoting contract
         // EDIT: not every Staker is Voter
-        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        if( TreasuryVoting(governance_contract).is_voter(_addr) )
         {
-             TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+             TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
         }
         
         emit InactiveStaker(_addr,_stake);
