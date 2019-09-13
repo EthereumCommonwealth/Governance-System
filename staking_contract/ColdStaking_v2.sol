@@ -27,11 +27,11 @@ library SafeMath {
   }
 }
 
-// interface TreasuryVoting{
-//     function update_voter(address _who, uint _new_weight) external;
+interface TreasuryVoting{
+    function update_voter(address _who, uint _new_weight) external;
     
-//     function is_voter(address _who) public constant returns (bool);
-// }
+    function is_voter(address _who) public constant returns (bool);
+}
 
 
 contract ColdStaking 
@@ -112,10 +112,10 @@ contract ColdStaking
         
         // update TreasuryVoting contract
         // EDIT: not every Staker is Voter
-        // if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
-        // {
-        //     TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
-        // }
+        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        {
+            TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+        }
         
         emit Staking(msg.sender,msg.value,staker[msg.sender].stake,block.timestamp);
     }
@@ -161,16 +161,6 @@ contract ColdStaking
         return _amount;
     }
     
-    function redistributed_reward_info() internal returns(uint) {
-        // the redistributed reward per block is set to 100 but can be changed.
-        uint _amount = (block.number -lastBlockNumber) * 100 ether;
-        if (_amount > rewardToRedistribute) {
-            _amount =  rewardToRedistribute;
-
-        }
-        return _amount;
-    }
-    
     
     // update the reward for the msg.sender
     function staker_reward_update() internal {
@@ -203,10 +193,10 @@ contract ColdStaking
         
         // update TreasuryVoting contract
         // EDIT: not every Staker is Voter
-        // if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
-        // {
-        //      TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
-        // }
+        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        {
+             TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+        }
         
         emit WithdrawStake(msg.sender,_stake);
     }
@@ -227,6 +217,21 @@ contract ColdStaking
             emit Claim(msg.sender, _reward);
         }
     }
+    
+    
+    function redistributed_reward_info() internal returns(uint) {
+        // the redistributed reward per block is set to 100 but can be changed.
+        uint _amount = (block.number -lastBlockNumber) * 100 ether;
+        if (_amount > rewardToRedistribute) {
+            _amount =  rewardToRedistribute;
+
+        }
+        return _amount;
+    }
+    
+    // ---------------------------------------------- Estimation Functions ----------------------------------- //
+    // The following function can be called to give the exact esstimation of the user reward at the moment of the called
+    // please note that the raward is completely independent from the users interactions.
     
     function staker_info() public view returns(uint256 weight, uint256 init, uint256 actual_block,uint256 _reward)
     {
@@ -267,11 +272,11 @@ contract ColdStaking
         staker[_addr].stake = 0;
         _addr.transfer(_stake);
         
-        // update TreasuryVoting contract
-        // if( TreasuryVoting(governance_contract).is_voter(_addr )
-        // {
-        //     TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
-        // }
+        // TreasuryVoting contract
+        if( TreasuryVoting(governance_contract).is_voter(_addr )
+        {
+            TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
+        }
         
         emit InactiveStaker(_addr,_stake);
     }
