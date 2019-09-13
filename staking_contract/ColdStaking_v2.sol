@@ -297,7 +297,7 @@ contract ColdStaking
     {
         emit DonationDeposited(msg.sender, msg.value);
         rewardToRedistribute = rewardToRedistribute.add(msg.value);
-        total_donations += msg.value;
+        total_donations = total_donations.add(msg.value);
     }
     
     function deposit() public payable 
