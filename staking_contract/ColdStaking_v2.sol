@@ -221,7 +221,7 @@ contract ColdStaking
     
     function redistributed_reward_info() internal returns(uint) {
         // the redistributed reward per block is set to 100 but can be changed.
-        uint _amount = (block.number -lastBlockNumber) * 1000000000000000;
+        uint _amount = (block.number -lastBlockNumber) * 100 ether;
         if (_amount > rewardToRedistribute) {
             _amount =  rewardToRedistribute;
 
