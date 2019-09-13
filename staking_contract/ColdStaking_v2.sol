@@ -55,11 +55,13 @@ contract ColdStaking
     mapping(address => Staker) public staker;
     
     
+    
     uint public staked_amount;
     uint public rewardToRedistribute;
     uint public weightedBlockReward;
     uint public totalClaimedReward;
     uint public lastTotalReward;
+    uint public total_donations;
     uint public lastBlockNumber;
     
     /*
@@ -128,7 +130,7 @@ contract ColdStaking
         // to the contract since the last call of staking_update.
         // the smart contract now is independent from any change of the monetary policy.
         
-        uint _total_sub_ = staked_amount.add(msg.value);
+        uint _total_sub_ = staked_amount.add(msg.value).add(total_donations);
         uint _total_add_ = totalClaimedReward;
         
         uint newTotalReward = address(this).balance.add(_total_add_).sub(_total_sub_);
@@ -149,7 +151,7 @@ contract ColdStaking
     // calculate the redistributed reward ( the unlcaimed stakers reward that were reported + the donation ), only partialy vested 100 CLO for every block.
     function redistributed_reward() internal returns(uint) {
         // the redistributed reward per block is set to 100 but can be changed.
-        uint _amount = (block.number -lastBlockNumber) * 100;
+        uint _amount = (block.number -lastBlockNumber) * 100 ether;
         if (_amount > rewardToRedistribute) {
             _amount =  rewardToRedistribute;
             rewardToRedistribute = 0;
@@ -250,9 +252,9 @@ contract ColdStaking
         _addr.transfer(_stake);
         
         // update TreasuryVoting contract
-        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        if( TreasuryVoting(governance_contract).is_voter(_addr) )
         {
-            TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+            TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
         }
         
         emit InactiveStaker(_addr,_stake);
@@ -272,6 +274,7 @@ contract ColdStaking
     {
         emit DonationDeposited(msg.sender, msg.value);
         rewardToRedistribute = rewardToRedistribute.add(msg.value);
+        total_donations += msg.value;
     }
     
     
