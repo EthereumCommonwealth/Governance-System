@@ -300,10 +300,6 @@ contract ColdStaking
         total_donations = total_donations.add(msg.value);
     }
     
-    function deposit() public payable 
-    {
-        
-    }
     
     // DEBUGGING FUNCTIONS
     /*-------------------------------------------------------*/
@@ -341,4 +337,12 @@ contract ColdStaking
     
     /*-------------------------------------------------------*/
     // END DEBUGGING FUNCTIONS
+    
+    // -------------------------------------------------------------------------------------------- //
+    // --------------------------- test function used to deposit the 20% block reward ------------- //
+    // --------------------------- to be delete for mainnet --------------------------------------- //
+    function deposit_block_reward() public payable 
+    {
+        
+    }
 }
