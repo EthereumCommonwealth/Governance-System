@@ -61,7 +61,8 @@ contract ColdStaking
     uint public totalClaimedReward;
     uint public lastTotalReward;
     uint public lastBlockNumber;
-    
+    uint public total_donations;
+ 
     /*
     uint public claim_delay = 27 days;
     uint public max_delay = 365 * 2 days; // 2 years.
@@ -291,8 +292,6 @@ contract ColdStaking
             emit VoterWithrawlDeadlineUpdate(voter,_voteWithdrawalDeadline);
         }
     }
-    
-    uint total_donations = 0;
     
     function DEBUG_donation() public payable 
     {
