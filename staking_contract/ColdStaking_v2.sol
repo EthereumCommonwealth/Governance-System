@@ -27,11 +27,11 @@ library SafeMath {
   }
 }
 
-interface TreasuryVoting{
-    function update_voter(address _who, uint _new_weight) external;
+// interface TreasuryVoting{
+//     function update_voter(address _who, uint _new_weight) external;
     
-    function is_voter(address _who) public constant returns (bool);
-}
+//     function is_voter(address _who) public constant returns (bool);
+// }
 
 
 contract ColdStaking 
@@ -55,13 +55,11 @@ contract ColdStaking
     mapping(address => Staker) public staker;
     
     
-    
     uint public staked_amount;
     uint public rewardToRedistribute;
     uint public weightedBlockReward;
     uint public totalClaimedReward;
     uint public lastTotalReward;
-    uint public total_donations;
     uint public lastBlockNumber;
     
     /*
@@ -114,10 +112,10 @@ contract ColdStaking
         
         // update TreasuryVoting contract
         // EDIT: not every Staker is Voter
-        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
-        {
-            TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
-        }
+        // if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        // {
+        //     TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+        // }
         
         emit Staking(msg.sender,msg.value,staker[msg.sender].stake,block.timestamp);
     }
@@ -136,7 +134,8 @@ contract ColdStaking
         uint newTotalReward = address(this).balance.add(_total_add_).sub(_total_sub_);
         uint intervalReward = newTotalReward - lastTotalReward;
         
-        lastTotalReward = lastTotalReward + intervalReward;
+        lastTotalReward = lastTotalReward + intervalReward + total_donations;
+        total_donations = 0;
         
         if (staked_amount!=0) {
             weightedBlockReward = weightedBlockReward.add(intervalReward.add(redistributed_reward()).mul(1 ether).div(staked_amount));
@@ -162,6 +161,17 @@ contract ColdStaking
         return _amount;
     }
     
+    function redistributed_reward_info() internal returns(uint) {
+        // the redistributed reward per block is set to 100 but can be changed.
+        uint _amount = (block.number -lastBlockNumber) * 100 ether;
+        if (_amount > rewardToRedistribute) {
+            _amount =  rewardToRedistribute;
+
+        }
+        return _amount;
+    }
+    
+    
     // update the reward for the msg.sender
     function staker_reward_update() internal {
         uint stakerIntervalWeightedBlockReward = weightedBlockReward.sub(staker[msg.sender].lastWeightedBlockReward);
@@ -186,15 +196,17 @@ contract ColdStaking
         uint _reward = staker[msg.sender].reward;
         staker[msg.sender].reward = 0;
         
+        totalClaimedReward = totalClaimedReward.add(_reward); 
+        
         staker[msg.sender].lastClaim = block.timestamp;
         msg.sender.transfer(_stake.add(_reward));
         
         // update TreasuryVoting contract
         // EDIT: not every Staker is Voter
-        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
-        {
-            TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
-        }
+        // if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
+        // {
+        //      TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
+        // }
         
         emit WithdrawStake(msg.sender,_stake);
     }
@@ -209,6 +221,7 @@ contract ColdStaking
             staker[msg.sender].lastClaim = block.timestamp;
             uint _reward = staker[msg.sender].reward;
             staker[msg.sender].reward = 0;
+            totalClaimedReward = totalClaimedReward.add(_reward);
             msg.sender.transfer(_reward);
         
             emit Claim(msg.sender, _reward);
@@ -217,17 +230,20 @@ contract ColdStaking
     
     function staker_info() public view returns(uint256 weight, uint256 init, uint256 actual_block,uint256 _reward)
     {
-        uint _total_sub_ = staked_amount;
-        uint _total_add_ = totalClaimedReward;
-        uint newTotalReward = address(this).balance.add(_total_add_).sub(_total_sub_);
-        uint _intervalReward = newTotalReward - lastTotalReward;
         
-        if(staked_amount!=0) {
-            uint _weightedBlockReward = weightedBlockReward.add(_intervalReward.mul(1 ether).div(staked_amount));
-            uint stakerIntervalWeightedBlockReward = _weightedBlockReward.sub(staker[msg.sender].lastWeightedBlockReward);
-            _reward = staker[msg.sender].stake.mul(stakerIntervalWeightedBlockReward).div(1 ether);
-        }
-    
+        uint _total_sub_ = staked_amount.add(msg.value).add(total_donations);
+        uint _total_add_ = totalClaimedReward;
+        
+        uint newTotalReward = address(this).balance.add(_total_add_).sub(_total_sub_);
+        uint intervalReward = newTotalReward - lastTotalReward;
+        
+        if (staked_amount!=0) {
+            uint _weightedBlockReward = weightedBlockReward.add(intervalReward.add(redistributed_reward_info()).mul(1 ether).div(staked_amount));
+            uint _stakerIntervalWeightedBlockReward = _weightedBlockReward.sub(staker[msg.sender].lastWeightedBlockReward);
+            _reward = staker[msg.sender].stake.mul(_stakerIntervalWeightedBlockReward).div(1 ether);
+
+        } 
+        
         return (
         staker[msg.sender].stake,
         staker[msg.sender].lastClaim,
@@ -252,10 +268,10 @@ contract ColdStaking
         _addr.transfer(_stake);
         
         // update TreasuryVoting contract
-        if( TreasuryVoting(governance_contract).is_voter(_addr) )
-        {
-            TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
-        }
+        // if( TreasuryVoting(governance_contract).is_voter(_addr )
+        // {
+        //     TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
+        // }
         
         emit InactiveStaker(_addr,_stake);
     }
@@ -270,6 +286,8 @@ contract ColdStaking
         }
     }
     
+    uint total_donations = 0;
+    
     function DEBUG_donation() public payable 
     {
         emit DonationDeposited(msg.sender, msg.value);
@@ -277,7 +295,10 @@ contract ColdStaking
         total_donations += msg.value;
     }
     
-    
+    function deposit() public payable 
+    {
+        
+    }
     
     // DEBUGGING FUNCTIONS
     /*-------------------------------------------------------*/
@@ -306,6 +327,11 @@ contract ColdStaking
     function restrict_withdrawals(bool _status) only_treasurer
     {
         withdrawals_disabled = _status;
+    }
+    
+    function balanceContract() public view returns(uint256)
+    {
+        return this.balance;
     }
     
     /*-------------------------------------------------------*/
