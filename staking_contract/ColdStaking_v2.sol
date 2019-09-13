@@ -221,7 +221,7 @@ contract ColdStaking
     
     function redistributed_reward_info() internal returns(uint) {
         // the redistributed reward per block is set to 100 but can be changed.
-        uint _amount = (block.number -lastBlockNumber) * 100 ether;
+        uint _amount = (block.number -lastBlockNumber) * 1000000000000000;
         if (_amount > rewardToRedistribute) {
             _amount =  rewardToRedistribute;
 
@@ -271,11 +271,12 @@ contract ColdStaking
         uint _stake = staker[_addr].stake; 
         staker[_addr].stake = 0;
         _addr.transfer(_stake);
-        
-        // TreasuryVoting contract
-        if( TreasuryVoting(governance_contract).is_voter(_addr )
+      
+        // update TreasuryVoting contract
+        // EDIT: not every Staker is Voter
+        if( TreasuryVoting(governance_contract).is_voter(msg.sender) )
         {
-            TreasuryVoting(governance_contract).update_voter(_addr,staker[_addr].stake);
+             TreasuryVoting(governance_contract).update_voter(msg.sender,staker[msg.sender].stake);
         }
         
         emit InactiveStaker(_addr,_stake);
