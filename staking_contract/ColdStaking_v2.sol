@@ -231,7 +231,7 @@ contract ColdStaking
     }
     
     // ---------------------------------------------- Estimation Functions ----------------------------------- //
-    // The following function can be called to give the exact esstimation of the user reward at the moment of the called
+    // The following function can be called to give the exact esstimation of the user reward at the moment of the call
     // please note that the raward is completely independent from the users interactions.
     
     function staker_info() public view returns(uint256 weight, uint256 init, uint256 actual_block,uint256 _reward)
